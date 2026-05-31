@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@theme {
+  --font-pixel: "Press Start 2P", system-ui, sans-serif;
+  
+  --color-mc-green: #3C8527;
+  --color-mc-green-dark: #1f4a13;
+  --color-mc-green-hover: #489b30;
+  
+  --color-mc-gray: #4b4b4b;
+  --color-mc-gray-dark: #2c2c2c;
+  
+  --color-mc-gold: #FFD700;
+  --color-mc-exp: #7FFF00;
+  --color-mc-red: #FF5555;
+  --color-mc-diamond: #55FFFF;
+  --color-mc-dim: #AAAAAA;
+  
+  --color-panel-bg: rgba(24, 24, 24, 0.85);
+  --color-panel-border: rgba(80, 80, 80, 0.5);
+}
+
+@layer base {
+  body {
+    @apply bg-zinc-900 text-white antialiased text-base md:text-lg;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* 默认背景 (可在需要的地方被覆盖) */
+    background-image: url('/images/wallpaper_minecraft_bedrock_edition_2058x1440.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* 基础面板样式 (经典灰色 GUI) */
+  .mc-panel {
+    @apply rounded-sm;
+    background-color: #3C3C3C;
+    border: 2px solid #000;
+    box-shadow: inset 2px 2px 0px 0px #8B8B8B, inset -2px -2px 0px 0px #1A1A1A;
+    color: #FFF;
+  }
+
+  /* 导航栏样式 */
+  .mc-navbar {
+    @apply flex items-center justify-between px-6 py-4 sticky top-0 z-50;
+    background-color: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* 官网风格主按钮 */
+  .mc-btn {
+    @apply font-bold transition-all relative overflow-hidden flex items-center justify-center;
+    padding: 0.75rem 1.5rem;
+    color: #fff;
+    background-color: var(--color-mc-gray);
+    box-shadow: inset 0 -4px 0 0 var(--color-mc-gray-dark);
+    /* 修正内边距补偿阴影 */
+    padding-bottom: calc(0.75rem + 4px);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .mc-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+  }
+
+  .mc-btn:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow: inset 0 -1px 0 0 var(--color-mc-gray-dark);
+    padding-bottom: calc(0.75rem + 1px);
+    margin-top: 3px;
+  }
+  
+  .mc-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(1);
+  }
+
+  /* 绿色主按钮 (Primary) */
+  .mc-btn-primary {
+    background-color: var(--color-mc-green);
+    box-shadow: inset 0 -4px 0 0 var(--color-mc-green-dark);
+  }
+  .mc-btn-primary:active:not(:disabled) {
+    box-shadow: inset 0 -1px 0 0 var(--color-mc-green-dark);
+  }
+
+  /* 红色危险按钮 (Danger) */
+  .mc-btn-danger {
+    background-color: #D32F2F;
+    box-shadow: inset 0 -4px 0 0 #9A0007;
+  }
+  .mc-btn-danger:active:not(:disabled) {
+    box-shadow: inset 0 -1px 0 0 #9A0007;
+  }
+
+  /* 金色按钮 */
+  .mc-btn-gold {
+    background-color: #E6B800;
+    color: #333;
+    box-shadow: inset 0 -4px 0 0 #B38F00;
+  }
+  .mc-btn-gold:active:not(:disabled) {
+    box-shadow: inset 0 -1px 0 0 #B38F00;
+  }
+
+  /* 像素化图像 */
+  .pixel-image {
+    image-rendering: pixelated;
+  }
+
+  /* 标题字体 */
+  .font-mc {
+    font-family: var(--font-pixel);
+  }
+
+  /* 统一输入框 */
+  .mc-input {
+    @apply bg-black/50 border-2 border-gray-600 text-white px-3 py-2 outline-none;
+    font-family: var(--font-pixel);
+    transition: border-color 0.2s;
+  }
+  .mc-input:focus {
+    @apply border-white;
+  }
+
+  /* 口算输入框特供 */
+  .exam-input {
+    @apply bg-transparent border-b-2 border-gray-500 text-center text-white outline-none w-12 md:w-16 text-lg md:text-xl pb-1;
+    font-family: var(--font-pixel);
+    transition: all 0.2s;
+  }
+  .exam-input:focus {
+    @apply border-mc-gold text-mc-gold;
+    border-bottom-width: 3px;
+  }
+}
