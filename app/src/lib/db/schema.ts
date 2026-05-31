@@ -66,7 +66,9 @@ export const practiceAnswers = sqliteTable("practice_answers", {
   questionIndex: integer("question_index").notNull(),
   expression: text("expression").notNull(),
   correctAnswer: integer("correct_answer").notNull(),
+  correctAnswer2: integer("correct_answer_2"), // 用于带余数除法的余数
   userAnswer: integer("user_answer"),
+  userAnswer2: integer("user_answer_2"), // 用户输入的第二答案
   isCorrect: integer("is_correct", { mode: "boolean" }).notNull().default(false),
   questionType: text("question_type").notNull(),
 });

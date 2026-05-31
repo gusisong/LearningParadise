@@ -33,28 +33,34 @@ interface CharacterData {
 
 // ─── 空槽线稿 SVG 组件 ───
 const EmptyHelmet = () => (
-  <svg viewBox="0 0 16 16" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" style={{ imageRendering: 'pixelated' }}>
-    <path d="M4.5,4.5 h7 v4 h-1 v3 h-5 v-3 h-1 Z" />
+  <svg viewBox="0 0 16 16" width="100%" height="100%" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="square" style={{ imageRendering: 'pixelated' }}>
+    <path d="M 4.5 4.5 L 11.5 4.5 L 11.5 11.5 L 4.5 11.5 Z" />
+    <path d="M 6.5 7.5 L 6.5 8.5 M 9.5 7.5 L 9.5 8.5" />
+    <path d="M 7.5 10.5 L 8.5 10.5" />
   </svg>
 );
 const EmptyChestplate = () => (
-  <svg viewBox="0 0 16 16" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" style={{ imageRendering: 'pixelated' }}>
-    <path d="M4.5,2.5 h7 v3 h2 v4 h-2 v4 h-7 v-4 h-2 v-4 Z" />
+  <svg viewBox="0 0 16 16" width="100%" height="100%" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="square" style={{ imageRendering: 'pixelated' }}>
+    <path d="M 4.5 4.5 L 11.5 4.5 L 11.5 8.5 L 9.5 8.5 L 9.5 13.5 L 6.5 13.5 L 6.5 8.5 L 4.5 8.5 Z" />
+    <path d="M 6.5 4.5 L 6.5 5.5 L 9.5 5.5 L 9.5 4.5" />
   </svg>
 );
 const EmptyLeggings = () => (
-  <svg viewBox="0 0 16 16" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" style={{ imageRendering: 'pixelated' }}>
-    <path d="M4.5,2.5 h7 v4 h-2 v7 h-3 v-7 h-2 Z" />
+  <svg viewBox="0 0 16 16" width="100%" height="100%" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="square" style={{ imageRendering: 'pixelated' }}>
+    <path d="M 4.5 3.5 L 11.5 3.5 L 11.5 6.5 L 10.5 6.5 L 10.5 12.5 L 8.5 12.5 L 8.5 6.5 L 7.5 6.5 L 7.5 12.5 L 5.5 12.5 L 5.5 6.5 L 4.5 6.5 Z" />
+    <path d="M 4.5 5.5 L 11.5 5.5" />
   </svg>
 );
 const EmptyBoots = () => (
-  <svg viewBox="0 0 16 16" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" style={{ imageRendering: 'pixelated' }}>
-    <path d="M4.5,6.5 h2 v5 h1 v2 h-4 v-5 h1 Z M9.5,6.5 h2 v2 h1 v5 h-4 v-2 h1 Z" />
+  <svg viewBox="0 0 16 16" width="100%" height="100%" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="square" style={{ imageRendering: 'pixelated' }}>
+    <path d="M 3.5 7.5 L 6.5 7.5 L 6.5 13.5 L 2.5 13.5 L 2.5 10.5 L 3.5 10.5 Z" />
+    <path d="M 9.5 7.5 L 12.5 7.5 L 12.5 10.5 L 13.5 10.5 L 13.5 13.5 L 9.5 13.5 Z" />
   </svg>
 );
 const EmptyWeapon = () => (
-  <svg viewBox="0 0 16 16" width="32" height="32" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="1" style={{ imageRendering: 'pixelated' }}>
-    <path d="M2.5,13.5 l3,-3 m-2,0 l2,-2 l8,-8 l3,3 l-8,8 l-2,2 Z" />
+  <svg viewBox="0 0 16 16" width="100%" height="100%" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1" strokeLinecap="square" strokeLinejoin="miter" style={{ imageRendering: 'pixelated' }}>
+    <path d="M 4.5 3.5 L 11.5 3.5 L 11.5 8.5 L 8 13 L 4.5 8.5 Z" />
+    <path d="M 5.5 4.5 L 10.5 4.5 L 10.5 8.5 L 8 11.5 L 5.5 8.5 Z" />
   </svg>
 );
 
@@ -158,7 +164,6 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-4 text-xs font-mc">
           <span className="text-mc-gold" style={{ textShadow: "1px 1px 0 #000" }}>💰 {char.gold}</span>
-          <span className="text-mc-exp" style={{ textShadow: "1px 1px 0 #000" }}>Lv.{char.level}</span>
           <span className="text-mc-red" title="今日剩余练习次数" style={{ textShadow: "1px 1px 0 #000" }}>
             {"🍗".repeat(remaining)}
             {"  ".repeat(Math.max(0, 2 - remaining))}
@@ -169,14 +174,69 @@ export default function HomePage() {
       <main className="flex-1 flex flex-col lg:flex-row gap-6 p-4 md:p-8 max-w-6xl mx-auto w-full">
         {/* 左侧：角色面板 */}
         <div className="mc-panel flex-shrink-0 w-full lg:w-80 p-4">
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col gap-4">
             
-            {/* 官方头像 */}
-            <div className="w-24 h-24 bg-black/40 border-2 border-black p-2 shadow-[inset_2px_2px_0_rgba(255,255,255,0.1)]">
-              <img src={`/icons/EntitySprite_${char.skinType}.png`} alt={char.name} className="w-full h-full object-contain pixel-image" />
+            {/* 装备槽与角色展示 (Minecraft UI 风格) */}
+            <div className="flex items-center justify-center gap-4 mt-2">
+              {/* 护甲区 (左侧) */}
+              <div className="flex flex-col gap-1 h-[172px]">
+                {["helmet", "chestplate", "leggings", "boots"].map((slot) => {
+                  const item = char.equipped.find((e) => e.type === slot);
+                  return (
+                    <button
+                      key={slot}
+                      onClick={() => setActiveSlot(slot)}
+                      className="w-10 h-10 bg-[#8b8b8b] border-2 border-black flex items-center justify-center flex-shrink-0
+                                 shadow-[inset_2px_2px_0_#373737,inset_-2px_-2px_0_#fff]
+                                 hover:brightness-110 transition-all cursor-pointer relative"
+                      title={item ? item.name : `空 (${slot})`}
+                    >
+                      {item ? (
+                        <img src={`/icons/${item.iconKey}.png`} alt={item.name} className="w-7 h-7 pixel-image object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center p-[2px] opacity-80">{EMPTY_ICONS[slot]}</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 角色形象与名称 (中间) */}
+              <div className="flex flex-col items-center">
+                <div className="w-[120px] h-[172px] bg-black/40 border-2 border-black p-2 shadow-[inset_2px_2px_0_rgba(255,255,255,0.1)] flex items-center justify-center">
+                  <img src={`/icons/EntitySprite_${char.skinType}.png`} alt={char.name} className="w-full h-full object-contain pixel-image" />
+                </div>
+              </div>
+
+              {/* 武器区 (右侧) */}
+              <div className="flex flex-col justify-end h-[172px]">
+                {["weapon"].map((slot) => {
+                  const item = char.equipped.find((e) => e.type === slot);
+                  return (
+                    <button
+                      key={slot}
+                      onClick={() => setActiveSlot(slot)}
+                      className="w-10 h-10 bg-[#8b8b8b] border-2 border-black flex items-center justify-center flex-shrink-0
+                                 shadow-[inset_2px_2px_0_#373737,inset_-2px_-2px_0_#fff]
+                                 hover:brightness-110 transition-all cursor-pointer relative"
+                      title={item ? item.name : `空 (${slot})`}
+                    >
+                      {item ? (
+                        <img src={`/icons/${item.iconKey}.png`} alt={item.name} className="w-7 h-7 pixel-image object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center p-[2px] opacity-80">{EMPTY_ICONS[slot]}</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            
-            <h2 className="text-mc-gold text-lg font-mc" style={{ textShadow: "2px 2px 0 #000" }}>{char.name}</h2>
+
+            {/* 名字和等级 */}
+            <div className="flex items-center justify-center gap-2 -mt-1 mb-2">
+              <h2 className="text-mc-gold text-lg font-mc leading-none" style={{ textShadow: "2px 2px 0 #000" }}>{char.name}</h2>
+              <span className="text-mc-exp text-sm font-mc leading-none" style={{ textShadow: "1px 1px 0 #000" }}>Lv.{char.level}</span>
+            </div>
 
             {/* 经验条 */}
             <div className="w-full">
@@ -216,32 +276,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 装备槽 */}
-            <div className="w-full mt-2">
-              <p className="text-sm text-mc-dim mb-3 font-mc text-center">我的装备 (点击切换)</p>
-              <div className="flex justify-center gap-2">
-                {["helmet", "chestplate", "leggings", "boots", "weapon"].map((slot) => {
-                  const item = char.equipped.find((e) => e.type === slot);
-                  return (
-                    <button
-                      key={slot}
-                      onClick={() => setActiveSlot(slot)}
-                      className="w-12 h-12 bg-[#8b8b8b] border-2 border-black flex items-center justify-center 
-                                 shadow-[inset_2px_2px_0_#373737,inset_-2px_-2px_0_#fff]
-                                 hover:brightness-110 transition-all cursor-pointer relative"
-                      title={item ? item.name : `空 (${slot})`}
-                    >
-                      {item ? (
-                        <img src={`/icons/${item.iconKey}.png`} alt={item.name} className="w-8 h-8 pixel-image object-contain" />
-                      ) : (
-                        EMPTY_ICONS[slot]
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            
+            {/* 属性面板的结尾占位符 */}
           </div>
         </div>
 

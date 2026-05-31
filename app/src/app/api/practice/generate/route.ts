@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       index: i,
       expression: q.expression,
       answer: q.answer,
+      answer2: q.answer2,
       type: q.type,
     })),
   });

@@ -74,9 +74,9 @@ export default function CharacterSelectPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center pb-20">
+    <div className="fixed inset-0 z-50 flex flex-col items-center pt-[20vh] pb-20">
       {/* 标题 */}
-      <div className="text-center mb-16">
+      <div className="text-center mb-12 shrink-0">
         <h1
           className="text-5xl md:text-7xl font-mc text-[#DDD] tracking-tighter"
           style={{ textShadow: "4px 4px 0 #000, 0 4px 0 #000, -4px 0 0 #000, 0 -4px 0 #000, 4px 0 0 #000" }}
@@ -90,26 +90,28 @@ export default function CharacterSelectPage() {
 
       {!showCreate ? (
         <div className="flex flex-col gap-4 w-full max-w-sm px-4">
-          {characters.map((char) => (
-            <button
-              key={char.id}
-              onClick={() => selectCharacter(char.id)}
-              className="mc-btn w-full h-14 text-base justify-between px-6"
-            >
-              <div className="flex items-center gap-3">
-                <img src={`/icons/EntitySprite_${char.skinType}.png`} alt={char.skinType} className="w-8 h-8 pixel-image" />
-                <span className="font-mc text-white text-shadow-sm">{char.name}</span>
-              </div>
-              <div className="flex gap-4 font-mc text-xs text-gray-300">
-                <span>Lv.{char.level}</span>
-              </div>
-            </button>
-          ))}
+          <div className="flex flex-col gap-4 max-h-[200px] overflow-y-auto pr-2 pb-2 custom-scrollbar">
+            {characters.map((char) => (
+              <button
+                key={char.id}
+                onClick={() => selectCharacter(char.id)}
+                className="mc-btn w-full h-14 min-h-[56px] text-base justify-between px-6 shrink-0"
+              >
+                <div className="flex items-center gap-3">
+                  <img src={`/icons/EntitySprite_${char.skinType}.png`} alt={char.skinType} className="w-8 h-8 pixel-image" />
+                  <span className="font-mc text-white text-shadow-sm">{char.name}</span>
+                </div>
+                <div className="flex gap-4 font-mc text-xs text-gray-300">
+                  <span>Lv.{char.level}</span>
+                </div>
+              </button>
+            ))}
+          </div>
           
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-4 mt-2">
             <button
               onClick={() => setShowCreate(true)}
-              className="mc-btn flex-1 h-14 text-base font-mc text-white text-shadow-sm"
+              className="mc-btn flex-1 h-14 min-h-[56px] text-base font-mc text-white text-shadow-sm"
             >
               创建新角色
             </button>

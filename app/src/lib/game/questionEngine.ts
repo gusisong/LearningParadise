@@ -1,20 +1,18 @@
 /**
  * 数学口算题目生成引擎
  *
- * 核心规则（PRD V2）：
- * - 百以内加减乘除混合运算
- * - 每题 3 个数混合计算，带括号
- * - 加减法涉及进位退位
- * - 乘除法限定：一个十位数 × 一个个位数
- * - 难度分普通/挑战
+ * 核心规则：
+ * - 移除区分难度，统一为二年级至三年级过渡水平。
+ * - 使用 {ans} 和 {ans2} 作为占位符，支持多输入填空题。
  */
 
-import type { QuestionType } from "./constants";
+import { PRACTICE_CONFIG, type QuestionType } from "./constants";
 
 export interface GeneratedQuestion {
-  expression: string; // 显示表达式，如 "(17 + 8) × 3"
-  answer: number; // 正确答案
-  type: QuestionType; // 分类标签
+  expression: string;
+  answer: number;
+  answer2?: number;
+  type: QuestionType;
 }
 
 // ─── 工具函数 ───
@@ -28,162 +26,167 @@ function pick<T>(arr: T[]): T {
 
 // ─── 各类题型生成器 ───
 
-/** 进位加法: a + b 其中 a%10 + b%10 >= 10 */
-function genCarryAdd(hard: boolean): GeneratedQuestion {
-  let a: number, b: number;
-  do {
-    a = randInt(hard ? 20 : 10, hard ? 80 : 50);
-    b = randInt(hard ? 10 : 5, hard ? 50 : 30);
-  } while ((a % 10) + (b % 10) < 10 || a + b > 100);
-  return { expression: `${a} + ${b}`, answer: a + b, type: "add_carry" };
+/** 1. 大数加减法: 整十整百相加减，或三位数减一位数退位 */
+function genLargeNumberCalc(): GeneratedQuestion {
+  const subtype = randInt(1, 3);
+  if (subtype === 1) {
+    // 几百加几十，如 900 + 50
+    const a = randInt(1, 9) * 100;
+    const b = randInt(1, 9) * 10;
+    return { expression: `${a} + ${b} = {ans}`, answer: a + b, type: "large_number_calc" };
+  } else if (subtype === 2) {
+    // 几百减几十，如 700 - 30
+    const a = randInt(2, 9) * 100;
+    const b = randInt(1, 9) * 10;
+    return { expression: `${a} - ${b} = {ans}`, answer: a - b, type: "large_number_calc" };
+  } else {
+    // 三位数减一位数退位，如 331 - 3
+    const a = randInt(1, 9) * 100 + randInt(1, 9) * 10 + randInt(0, 5);
+    const b = randInt(6, 9);
+    return { expression: `${a} - ${b} = {ans}`, answer: a - b, type: "large_number_calc" };
+  }
 }
 
-/** 不进位加法 */
-function genNoCarryAdd(hard: boolean): GeneratedQuestion {
-  let a: number, b: number;
-  do {
-    a = randInt(hard ? 20 : 10, hard ? 60 : 40);
-    b = randInt(hard ? 10 : 5, hard ? 30 : 20);
-  } while ((a % 10) + (b % 10) >= 10 || a + b > 100);
-  return { expression: `${a} + ${b}`, answer: a + b, type: "add_no_carry" };
-}
-
-/** 退位减法: a - b 其中 a%10 < b%10 */
-function genBorrowSub(hard: boolean): GeneratedQuestion {
-  let a: number, b: number;
-  do {
-    a = randInt(hard ? 30 : 20, hard ? 90 : 60);
-    b = randInt(hard ? 10 : 5, hard ? 50 : 30);
-  } while ((a % 10) >= (b % 10) || a - b < 0 || a === b);
-  return { expression: `${a} - ${b}`, answer: a - b, type: "sub_borrow" };
-}
-
-/** 不退位减法 */
-function genNoBorrowSub(hard: boolean): GeneratedQuestion {
-  let a: number, b: number;
-  do {
-    a = randInt(hard ? 30 : 20, hard ? 90 : 60);
-    b = randInt(hard ? 10 : 5, hard ? 40 : 25);
-  } while ((a % 10) < (b % 10) || a - b < 0 || a === b);
-  return { expression: `${a} - ${b}`, answer: a - b, type: "sub_no_borrow" };
-}
-
-/** 乘法: 十位数 × 个位数 */
-function genMul(hard: boolean): GeneratedQuestion {
-  const a = randInt(hard ? 12 : 10, hard ? 19 : 15);
-  const b = randInt(hard ? 3 : 2, hard ? 9 : 6);
-  return { expression: `${a} × ${b}`, answer: a * b, type: "mul" };
-}
-
-/** 除法: 确保整除，商合理 */
-function genDiv(hard: boolean): GeneratedQuestion {
-  const b = randInt(hard ? 3 : 2, hard ? 9 : 6);
-  const quotient = randInt(hard ? 5 : 3, hard ? 15 : 10);
-  const a = b * quotient;
-  if (a > 99) return genDiv(hard); // 超出百以内则重试
-  return { expression: `${a} ÷ ${b}`, answer: quotient, type: "div" };
-}
-
-// ─── 三数混合运算生成（带括号）───
-
-type BinaryOp = "+" | "-" | "×" | "÷";
-
-function opToFn(op: BinaryOp): (a: number, b: number) => number | null {
-  return (a, b) => {
-    switch (op) {
-      case "+": return a + b;
-      case "-": return a - b >= 0 ? a - b : null;
-      case "×": return a * b;
-      case "÷": return b !== 0 && a % b === 0 ? a / b : null;
+/** 2. 连加连减运算 */
+function genContinuousCalc(): GeneratedQuestion {
+  const ops = pick([["+", "+"], ["-", "-"], ["+", "-"], ["-", "+"]]);
+  
+  if (ops[0] === "+" && ops[1] === "+") {
+    // 连加如 5 + 5 + 73
+    const a = randInt(2, 20);
+    const b = randInt(2, 20);
+    const c = randInt(10, 70);
+    return { expression: `${a} + ${b} + ${c} = {ans}`, answer: a + b + c, type: "continuous_calc" };
+  } else if (ops[0] === "-" && ops[1] === "-") {
+    // 连减如 11 - 3 - 4
+    const a = randInt(20, 90);
+    const b = randInt(5, 15);
+    const c = randInt(5, 15);
+    return { expression: `${a} - ${b} - ${c} = {ans}`, answer: a - b - c, type: "continuous_calc" };
+  } else {
+    // 混合连加减
+    const a = randInt(10, 50);
+    const b = randInt(5, 30);
+    const op1 = ops[0];
+    const op2 = ops[1];
+    let inter = op1 === "+" ? a + b : a - b;
+    if (inter <= 0) {
+      // fallback to ++ if negative intermediate
+      return { expression: `${a} + ${b} + 5 = {ans}`, answer: a + b + 5, type: "continuous_calc" };
     }
+    const c = randInt(5, 30);
+    let final = op2 === "+" ? inter + c : inter - c;
+    if (final < 0) {
+       return { expression: `${a} + ${b} + ${c} = {ans}`, answer: a + b + c, type: "continuous_calc" };
+    }
+    return { expression: `${a} ${op1} ${b} ${op2} ${c} = {ans}`, answer: final, type: "continuous_calc" };
+  }
+}
+
+/** 3. 无括号混合运算 (乘除与加减) */
+function genMixedNoBracket(): GeneratedQuestion {
+  // 形式1: a × b ± c
+  // 形式2: a ÷ b ± c
+  // 形式3: a ± b × c
+  // 形式4: a ± b ÷ c
+  const form = randInt(1, 4);
+  const isAdd = Math.random() > 0.5;
+  const op2 = isAdd ? "+" : "-";
+
+  if (form === 1) { // a × b ± c
+    const a = randInt(2, 9);
+    const b = randInt(2, 9);
+    const c = randInt(5, 50);
+    const ans = isAdd ? a * b + c : a * b - c;
+    if (ans < 0) return genMixedNoBracket();
+    return { expression: `${a} × ${b} ${op2} ${c} = {ans}`, answer: ans, type: "mixed_no_bracket" };
+  } else if (form === 2) { // a ÷ b ± c
+    const b = randInt(2, 9);
+    const q = randInt(2, 9);
+    const a = b * q;
+    const c = randInt(5, 50);
+    const ans = isAdd ? q + c : q - c;
+    if (ans < 0) return genMixedNoBracket();
+    return { expression: `${a} ÷ ${b} ${op2} ${c} = {ans}`, answer: ans, type: "mixed_no_bracket" };
+  } else if (form === 3) { // a ± b × c
+    const b = randInt(2, 9);
+    const c = randInt(2, 9);
+    const a = randInt(10, 80);
+    const ans = isAdd ? a + b * c : a - b * c;
+    if (ans < 0) return genMixedNoBracket();
+    return { expression: `${a} ${op2} ${b} × ${c} = {ans}`, answer: ans, type: "mixed_no_bracket" };
+  } else { // a ± b ÷ c
+    const c = randInt(2, 9);
+    const q = randInt(2, 9);
+    const b = c * q;
+    const a = randInt(10, 80);
+    const ans = isAdd ? a + q : a - q;
+    if (ans < 0) return genMixedNoBracket();
+    return { expression: `${a} ${op2} ${b} ÷ ${c} = {ans}`, answer: ans, type: "mixed_no_bracket" };
+  }
+}
+
+/** 4. 等式填空题 (位置在等号左侧或混合中) */
+function genEquationBlank(): GeneratedQuestion {
+  const type = randInt(1, 2);
+  if (type === 1) {
+    // a × {ans} = b ± c
+    const a = randInt(2, 9);
+    const ans = randInt(2, 9);
+    const target = a * ans;
+    // 构造右侧
+    const b = randInt(target + 1, target + 20);
+    const c = b - target;
+    return { expression: `${a} × {ans} = ${b} - ${c}`, answer: ans, type: "equation_blank" };
+  } else {
+    // a × b - {ans} = c
+    const a = randInt(5, 9);
+    const b = randInt(5, 9);
+    const prod = a * b;
+    const ans = randInt(10, prod - 5);
+    const c = prod - ans;
+    return { expression: `${a} × ${b} - {ans} = ${c}`, answer: ans, type: "equation_blank" };
+  }
+}
+
+/** 5. 带余除法求被除数 */
+function genDivRemainderDividend(): GeneratedQuestion {
+  // {ans} ÷ a = b ... c
+  const a = randInt(3, 9);
+  const b = randInt(3, 9);
+  const c = randInt(1, a - 1); // 确保余数小于除数
+  const ans = a * b + c;
+  return { expression: `{ans} ÷ ${a} = ${b} ... ${c}`, answer: ans, type: "div_remainder_dividend" };
+}
+
+/** 6. 带余除法求商和余数（双填空） */
+function genDivRemainder(): GeneratedQuestion {
+  // a ÷ b = {ans} ... {ans2}
+  const b = randInt(3, 9);
+  const quotient = randInt(3, 9);
+  const remainder = randInt(1, b - 1);
+  const a = b * quotient + remainder;
+  return { 
+    expression: `${a} ÷ ${b} = {ans} ... {ans2}`, 
+    answer: quotient, 
+    answer2: remainder, 
+    type: "div_remainder" 
   };
 }
 
-function genMixedQuestion(hard: boolean): GeneratedQuestion {
-  // 策略：生成 (a op1 b) op2 c 或 a op1 (b op2 c) 形式
-  const ops: BinaryOp[] = hard
-    ? ["+", "-", "×", "÷"]
-    : ["+", "-", "×"];
+// ─── 主函数：生成题目 ───
 
-  // 确保至少一个加减法和一个乘除法
-  const addSubOps: BinaryOp[] = ["+", "-"];
-  const mulDivOps: BinaryOp[] = hard ? ["×", "÷"] : ["×"];
-
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const useBracketFirst = Math.random() > 0.5;
-    const op1 = pick(Math.random() > 0.5 ? addSubOps : mulDivOps);
-    const op2 = pick(op1 === "+" || op1 === "-" ? mulDivOps : addSubOps);
-
-    let a: number, b: number, c: number;
-
-    // 乘除法的操作数约束
-    if (op1 === "×" || op1 === "÷") {
-      a = randInt(10, hard ? 19 : 15);
-      b = randInt(2, hard ? 9 : 6);
-      if (op1 === "÷") {
-        b = randInt(2, hard ? 9 : 6);
-        a = b * randInt(3, Math.min(12, Math.floor(99 / b)));
-      }
-    } else {
-      a = randInt(hard ? 15 : 10, hard ? 60 : 40);
-      b = randInt(hard ? 10 : 5, hard ? 40 : 25);
-    }
-
-    if (op2 === "×" || op2 === "÷") {
-      c = randInt(2, hard ? 9 : 6);
-    } else {
-      c = randInt(hard ? 10 : 5, hard ? 30 : 20);
-    }
-
-    let result: number | null;
-    let expression: string;
-
-    if (useBracketFirst) {
-      // (a op1 b) op2 c
-      const inner = opToFn(op1)(a, b);
-      if (inner === null || inner < 0 || inner > 200) continue;
-      result = opToFn(op2)(inner, c);
-      if (op2 === "÷" && c !== 0 && inner % c !== 0) continue;
-      expression = `(${a} ${op1} ${b}) ${op2} ${c}`;
-    } else {
-      // a op1 (b op2 c)
-      const inner = opToFn(op2)(b, c);
-      if (inner === null || inner < 0 || inner > 200) continue;
-      result = opToFn(op1)(a, inner);
-      if (op1 === "÷" && inner !== 0 && a % inner !== 0) continue;
-      expression = `${a} ${op1} (${b} ${op2} ${c})`;
-    }
-
-    if (result === null || result < 0 || !Number.isInteger(result) || result > 999) {
-      continue;
-    }
-
-    // 判断混合类型
-    const hasBracket = true;
-    const hasMulDiv = op1 === "×" || op1 === "÷" || op2 === "×" || op2 === "÷";
-    const qType: QuestionType =
-      hasMulDiv && hasBracket ? "mixed_priority" : "mixed_complex";
-
-    return { expression, answer: result, type: qType };
-  }
-
-  // fallback: 简单加法
-  return genCarryAdd(hard);
-}
-
-// ─── 主函数：生成 50 道题 ───
-
-const SIMPLE_GENERATORS = [
-  genCarryAdd,
-  genNoCarryAdd,
-  genBorrowSub,
-  genNoBorrowSub,
-  genMul,
-  genDiv,
+const GENERATORS = [
+  genLargeNumberCalc,
+  genContinuousCalc,
+  genMixedNoBracket,
+  genEquationBlank,
+  genDivRemainderDividend,
+  genDivRemainder,
 ];
 
 export interface QuestionGeneratorOptions {
-  mode: "normal" | "challenge";
+  mode?: "normal" | "challenge"; // 保留参数但内部不再区分难度
   /** 需要生成变形题的错题类型列表 */
   weakTypes?: QuestionType[];
   /** 变形题数量 (默认 10) */
@@ -191,30 +194,23 @@ export interface QuestionGeneratorOptions {
 }
 
 export function generateQuestions(options: QuestionGeneratorOptions): GeneratedQuestion[] {
-  const { mode, weakTypes = [], variantCount = 10 } = options;
-  const hard = mode === "challenge";
+  const { weakTypes = [], variantCount = 10 } = options;
   const questions: GeneratedQuestion[] = [];
 
   // 1. 先生成变形题（基于错题类型）
   const actualVariantCount = Math.min(variantCount, weakTypes.length > 0 ? variantCount : 0);
   for (let i = 0; i < actualVariantCount; i++) {
     const targetType = weakTypes[i % weakTypes.length];
-    const q = generateByType(targetType, hard);
+    const q = generateByType(targetType);
     questions.push(q);
   }
 
-  // 2. 剩余题目均匀分配各类型 + 混合题
-  const remaining = 50 - questions.length;
-  const mixedCount = Math.floor(remaining * 0.4); // 40% 混合题
-  const simpleCount = remaining - mixedCount;
+  // 2. 剩余题目均匀分配各类型
+  const remaining = PRACTICE_CONFIG.totalQuestions - questions.length;
 
-  for (let i = 0; i < simpleCount; i++) {
-    const gen = SIMPLE_GENERATORS[i % SIMPLE_GENERATORS.length];
-    questions.push(gen(hard));
-  }
-
-  for (let i = 0; i < mixedCount; i++) {
-    questions.push(genMixedQuestion(hard));
+  for (let i = 0; i < remaining; i++) {
+    const gen = GENERATORS[i % GENERATORS.length];
+    questions.push(gen());
   }
 
   // 3. 随机打乱顺序
@@ -227,16 +223,14 @@ export function generateQuestions(options: QuestionGeneratorOptions): GeneratedQ
 }
 
 /** 根据错题类型生成对应的变形题 */
-function generateByType(type: QuestionType, hard: boolean): GeneratedQuestion {
+function generateByType(type: QuestionType): GeneratedQuestion {
   switch (type) {
-    case "add_carry": return genCarryAdd(hard);
-    case "add_no_carry": return genNoCarryAdd(hard);
-    case "sub_borrow": return genBorrowSub(hard);
-    case "sub_no_borrow": return genNoBorrowSub(hard);
-    case "mul": return genMul(hard);
-    case "div": return genDiv(hard);
-    case "mixed_priority":
-    case "mixed_complex":
-      return genMixedQuestion(hard);
+    case "large_number_calc": return genLargeNumberCalc();
+    case "continuous_calc": return genContinuousCalc();
+    case "mixed_no_bracket": return genMixedNoBracket();
+    case "equation_blank": return genEquationBlank();
+    case "div_remainder_dividend": return genDivRemainderDividend();
+    case "div_remainder": return genDivRemainder();
+    default: return genMixedNoBracket(); // 应对旧类型
   }
 }

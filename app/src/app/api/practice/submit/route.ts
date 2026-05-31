@@ -52,8 +52,14 @@ export async function POST(request: NextRequest) {
 
   // 计算正确数
   const correctCount = answers.filter(
-    (a: { userAnswer: number; correctAnswer: number }) =>
-      a.userAnswer !== null && a.userAnswer !== undefined && a.userAnswer === a.correctAnswer
+    (a: { userAnswer: number; correctAnswer: number; userAnswer2?: number; correctAnswer2?: number }) => {
+      if (a.userAnswer === null || a.userAnswer === undefined) return false;
+      if (a.userAnswer !== a.correctAnswer) return false;
+      if (a.correctAnswer2 !== undefined && a.correctAnswer2 !== null) {
+        return a.userAnswer2 === a.correctAnswer2;
+      }
+      return true;
+    }
   ).length;
 
   // 计算奖励
@@ -85,14 +91,22 @@ export async function POST(request: NextRequest) {
 
     // 2. 写入每题详细作答
     for (const a of answers) {
+      const isCorrect = 
+        a.userAnswer !== null && 
+        a.userAnswer !== undefined && 
+        a.userAnswer === a.correctAnswer &&
+        (a.correctAnswer2 == null || a.userAnswer2 === a.correctAnswer2);
+
       db.insert(practiceAnswers)
         .values({
           sessionId: session.id,
           questionIndex: a.index,
           expression: a.expression,
           correctAnswer: a.correctAnswer,
+          correctAnswer2: a.correctAnswer2 ?? null,
           userAnswer: a.userAnswer ?? null,
-          isCorrect: a.userAnswer === a.correctAnswer,
+          userAnswer2: a.userAnswer2 ?? null,
+          isCorrect,
           questionType: a.type,
         })
         .run();
@@ -110,7 +124,12 @@ export async function POST(request: NextRequest) {
 
     // 4. 更新错题追踪器
     for (const a of answers) {
-      const isCorrect = a.userAnswer === a.correctAnswer;
+      const isCorrect = 
+        a.userAnswer !== null && 
+        a.userAnswer !== undefined && 
+        a.userAnswer === a.correctAnswer &&
+        (a.correctAnswer2 == null || a.userAnswer2 === a.correctAnswer2);
+
       const existing = db
         .select()
         .from(wrongQuestionTracker)
@@ -128,7 +147,7 @@ export async function POST(request: NextRequest) {
         db.update(wrongQuestionTracker)
           .set({
             consecutiveCorrect: newConsecutive,
-            isGraduated: newConsecutive >= 5,
+            isGraduated: newConsecutive >= 10,
             updatedAt: new Date().toISOString(),
           })
           .where(eq(wrongQuestionTracker.id, existing.id))

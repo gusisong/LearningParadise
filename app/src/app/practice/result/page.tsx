@@ -14,8 +14,8 @@ interface PracticeResult {
   expEarned: number;
   leveledUp: boolean;
   newLevel: number;
-  questions: Array<{ index: number; expression: string; answer: number; type: string }>;
-  userAnswers: Array<{ correctAnswer: number; userAnswer: number | null }>;
+  questions: Array<{ index: number; expression: string; answer: number; answer2?: number; type: string }>;
+  userAnswers: Array<{ correctAnswer: number; correctAnswer2?: number; userAnswer: number | null; userAnswer2: number | null }>;
 }
 
 export default function PracticeResultPage() {
@@ -46,9 +46,15 @@ export default function PracticeResultPage() {
   }
 
   const isPerfect = result.correctCount === result.totalQuestions;
-  const wrongQuestions = result.questions.filter(
-    (_, i) => result.userAnswers[i]?.userAnswer !== result.userAnswers[i]?.correctAnswer
-  );
+  const wrongQuestions = result.questions.filter((q, i) => {
+    const ua = result.userAnswers[i];
+    if (!ua) return true;
+    if (ua.userAnswer !== ua.correctAnswer) return true;
+    if (ua.correctAnswer2 !== undefined && ua.correctAnswer2 !== null) {
+      if (ua.userAnswer2 !== ua.correctAnswer2) return true;
+    }
+    return false;
+  });
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6">
@@ -112,21 +118,37 @@ export default function PracticeResultPage() {
               <div className="mc-panel text-left max-h-60 overflow-y-auto p-4 border-2">
                 {wrongQuestions.map((q, i) => {
                   const ua = result.userAnswers[q.index];
+                  
+                  let userExpr = q.expression;
+                  let correctExpr = q.expression;
+                  
+                  if (q.expression.includes("{ans2}")) {
+                     userExpr = userExpr.replace("{ans}", String(ua?.userAnswer ?? "未答")).replace("{ans2}", String(ua?.userAnswer2 ?? "未答"));
+                     correctExpr = correctExpr.replace("{ans}", String(q.answer)).replace("{ans2}", String(q.answer2));
+                  } else if (q.expression.includes("{ans}")) {
+                     userExpr = userExpr.replace("{ans}", String(ua?.userAnswer ?? "未答"));
+                     correctExpr = correctExpr.replace("{ans}", String(q.answer));
+                  } else {
+                     userExpr = `${q.expression} = ${ua?.userAnswer ?? "未答"}`;
+                     correctExpr = `${q.expression} = ${q.answer}`;
+                  }
+
                   return (
                     <div
                       key={i}
-                      className="flex items-center justify-between py-2 text-sm font-mc border-b border-panel-border last:border-0"
+                      className="flex items-center justify-between py-3 text-sm font-mc border-b border-panel-border last:border-0"
                     >
-                      <span className="flex-1">
-                        {q.expression} ={" "}
+                      <div className="flex-1 flex flex-col gap-2 font-sans text-base whitespace-nowrap overflow-x-auto no-scrollbar">
                         <span className="text-mc-red">
-                          {ua?.userAnswer ?? "未答"}
+                          <span className="text-mc-dim mr-2 font-mc text-sm">你的作答:</span>
+                          {userExpr}
                         </span>
-                      </span>
-                      <span className="text-mc-exp w-32 text-right">
-                        正确: {q.answer}
-                      </span>
-                      <span className="text-mc-dim text-xs w-24 text-right">
+                        <span className="text-mc-exp">
+                          <span className="text-mc-dim mr-2 font-mc text-sm">正确答案:</span>
+                          {correctExpr}
+                        </span>
+                      </div>
+                      <span className="text-mc-dim text-xs w-28 text-right ml-4">
                         {QUESTION_TYPES[q.type as keyof typeof QUESTION_TYPES] || q.type}
                       </span>
                     </div>

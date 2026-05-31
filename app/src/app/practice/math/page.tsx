@@ -7,7 +7,13 @@ interface Question {
   index: number;
   expression: string;
   answer: number;
+  answer2?: number;
   type: string;
+}
+
+interface AnswerPair {
+  ans1: string;
+  ans2: string;
 }
 
 const DURATION_SECONDS = 180; // 3 分钟
@@ -15,12 +21,11 @@ const DURATION_SECONDS = 180; // 3 分钟
 export default function PracticePage() {
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [userAnswers, setUserAnswers] = useState<(string)[]>([]);
-  const [mode, setMode] = useState<"normal" | "challenge">("normal");
+  const [userAnswers, setUserAnswers] = useState<AnswerPair[]>([]);
   const [phase, setPhase] = useState<"setup" | "exam" | "submitting">("setup");
   const [timeLeft, setTimeLeft] = useState(DURATION_SECONDS);
   const [startTime, setStartTime] = useState(0);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>(new Array(100).fill(null));
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const characterId =
@@ -41,8 +46,7 @@ export default function PracticePage() {
 
         if (remaining > 0 && state.questions?.length > 0) {
           setQuestions(state.questions);
-          setUserAnswers(state.userAnswers || new Array(50).fill(""));
-          setMode(state.mode || "normal");
+          setUserAnswers(state.userAnswers || new Array(40).fill({ ans1: "", ans2: "" }));
           setTimeLeft(remaining);
           setStartTime(state.startTime);
           setPhase("exam");
@@ -60,10 +64,10 @@ export default function PracticePage() {
     if (phase === "exam" && questions.length > 0) {
       localStorage.setItem(
         "practiceState",
-        JSON.stringify({ questions, userAnswers, mode, startTime })
+        JSON.stringify({ questions, userAnswers, startTime })
       );
     }
-  }, [userAnswers, phase, questions, mode, startTime]);
+  }, [userAnswers, phase, questions, startTime]);
 
   // ─── 倒计时 ───
   useEffect(() => {
@@ -96,17 +100,21 @@ export default function PracticePage() {
       const res = await fetch("/api/practice/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ characterId: parseInt(characterId), mode }),
+        body: JSON.stringify({ characterId: parseInt(characterId) }),
       });
       const data = await res.json();
       setQuestions(data.questions);
-      setUserAnswers(new Array(data.questions.length).fill(""));
+      setUserAnswers(new Array(data.questions.length).fill({ ans1: "", ans2: "" }));
       setStartTime(Date.now());
       setTimeLeft(DURATION_SECONDS);
       setPhase("exam");
 
       // 聚焦第一个输入框
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      setTimeout(() => {
+        let first = 0;
+        while (first < 100 && !inputRefs.current[first]) first++;
+        inputRefs.current[first]?.focus();
+      }, 100);
     } catch (e) {
       console.error("Failed to generate questions:", e);
     }
@@ -123,7 +131,9 @@ export default function PracticePage() {
       index: q.index,
       expression: q.expression,
       correctAnswer: q.answer,
-      userAnswer: userAnswers[i] !== "" ? parseInt(userAnswers[i]) : null,
+      correctAnswer2: q.answer2,
+      userAnswer: userAnswers[i]?.ans1 !== "" ? parseInt(userAnswers[i].ans1) : null,
+      userAnswer2: userAnswers[i]?.ans2 !== "" ? parseInt(userAnswers[i].ans2) : null,
       type: q.type,
     }));
 
@@ -133,17 +143,13 @@ export default function PracticePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           characterId: parseInt(characterId!),
-          mode,
           durationMs,
           answers,
         }),
       });
       const result = await res.json();
 
-      // 清除缓存的考试状态
       localStorage.removeItem("practiceState");
-
-      // 跳转结算页
       localStorage.setItem("practiceResult", JSON.stringify({
         ...result,
         questions,
@@ -154,14 +160,17 @@ export default function PracticePage() {
       console.error("Submit failed:", e);
       setPhase("exam");
     }
-  }, [phase, startTime, questions, userAnswers, characterId, mode, router]);
+  }, [phase, startTime, questions, userAnswers, characterId, router]);
 
   // ─── 焦点流转 ───
-  function handleKeyDown(e: React.KeyboardEvent, index: number) {
+  function handleKeyDown(e: React.KeyboardEvent, inputIndex: number) {
     if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      const next = index + 1;
-      if (next < questions.length) {
+      let next = inputIndex + 1;
+      while (next < 100 && !inputRefs.current[next]) {
+        next++;
+      }
+      if (next < 100 && inputRefs.current[next]) {
         inputRefs.current[next]?.focus();
         inputRefs.current[next]?.select();
       }
@@ -169,20 +178,26 @@ export default function PracticePage() {
   }
 
   // ─── 输入处理 + 自动长度跳转 ───
-  function handleInput(index: number, value: string) {
-    // 仅允许数字和负号
+  function handleInput(i: number, key: "ans1" | "ans2", value: string, inputIndex: number) {
     const cleaned = value.replace(/[^0-9\-]/g, "");
     const newAnswers = [...userAnswers];
-    newAnswers[index] = cleaned;
+    if (!newAnswers[i]) newAnswers[i] = { ans1: "", ans2: "" };
+    newAnswers[i] = { ...newAnswers[i], [key]: cleaned };
     setUserAnswers(newAnswers);
 
-    // 自动长度跳转：当输入位数与答案位数相同时，跳到下一题
     if (cleaned.length > 0) {
-      const answerLen = Math.abs(questions[index].answer).toString().length;
-      if (cleaned.length >= answerLen && index + 1 < questions.length) {
+      const targetAns = key === "ans1" ? questions[i].answer : questions[i].answer2;
+      const answerLen = targetAns !== undefined && targetAns !== null ? Math.abs(targetAns).toString().length : 1;
+      if (cleaned.length >= answerLen) {
         setTimeout(() => {
-          inputRefs.current[index + 1]?.focus();
-          inputRefs.current[index + 1]?.select();
+          let next = inputIndex + 1;
+          while (next < 100 && !inputRefs.current[next]) {
+            next++;
+          }
+          if (next < 100 && inputRefs.current[next]) {
+            inputRefs.current[next]?.focus();
+            inputRefs.current[next]?.select();
+          }
         }, 50);
       }
     }
@@ -204,29 +219,9 @@ export default function PracticePage() {
             📝 口算练习
           </h1>
 
-          <div className="w-full mb-8">
-            <p className="text-sm text-mc-dim mb-4 font-mc text-center">选择难度</p>
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => setMode("normal")}
-                className={`mc-btn text-sm px-6 py-3 font-mc ${mode === "normal" ? "mc-btn-primary" : ""}`}
-              >
-                普通
-              </button>
-              <button
-                onClick={() => setMode("challenge")}
-                className={`mc-btn text-sm px-6 py-3 font-mc ${mode === "challenge" ? "mc-btn-danger border-mc-gold" : ""}`}
-              >
-                ⚡ 挑战
-              </button>
-            </div>
-          </div>
-
           <div className="text-sm text-gray-300 mb-8 space-y-3 font-mc text-center bg-black/30 p-4 border border-[#1A1A1A] shadow-[inset_1px_1px_0_rgba(255,255,255,0.1)] w-full">
-            <p>📋 50 道题 <span className="text-mc-dim mx-2">|</span> ⏱ 3 分钟</p>
-            <p className={mode === "challenge" ? "text-mc-red" : "text-mc-exp"}>
-              {mode === "challenge" ? "🔥 挑战模式：题目更难，奖励×1.5" : "📖 普通模式：标准难度"}
-            </p>
+            <p>📋 40 道题 <span className="text-slate-400 mx-2">|</span> ⏱ 3 分钟</p>
+            <p className="text-mc-exp">📖 难度均衡，贴近日常练习</p>
           </div>
 
           <div className="flex gap-4 w-full mt-2">
@@ -249,16 +244,15 @@ export default function PracticePage() {
   const isDisabled = phase === "submitting";
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[#FDFBF2] text-slate-800 font-sans">
       {/* 置顶毛玻璃倒计时 */}
-      <div className="mc-navbar !py-3">
-        <span className="text-sm text-mc-dim font-mc">
-          {mode === "challenge" ? "⚡ 挑战" : "📝 普通"} 模式
+      <div className="flex items-center justify-between px-6 py-4 sticky top-0 z-50 bg-[#FDFBF2]/90 backdrop-blur border-b border-amber-200/50 shadow-sm">
+        <span className="text-sm font-bold text-slate-600">
+          📝 口算练习
         </span>
 
         <span
-          className={`text-2xl font-bold ${timeLeft <= 60 ? "timer-critical" : "text-mc-gold"}`}
-          style={{ textShadow: "2px 2px 0 #000" }}
+          className={`text-2xl font-bold ${timeLeft <= 60 ? "text-red-500 animate-pulse" : "text-amber-600"}`}
         >
           ⏱ {formatTime(timeLeft)}
         </span>
@@ -266,47 +260,80 @@ export default function PracticePage() {
         <button
           onClick={handleSubmit}
           disabled={isDisabled}
-          className="mc-btn mc-btn-primary text-xs px-6 py-2 font-mc"
+          className="mc-btn mc-btn-primary text-xs px-6 py-2 !font-sans"
         >
           {isDisabled ? "..." : "交卷"}
         </button>
       </div>
 
       {/* 50 题双列网格 */}
-      <div className="flex-1 p-4 md:p-6 max-w-4xl mx-auto w-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-          {questions.map((q, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 py-2"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
-            >
-              {/* 题号 */}
-              <span className="text-mc-dim text-sm w-8 text-right flex-shrink-0 font-mc">
-                {i + 1}.
-              </span>
+      <div className="flex-1 p-4 md:p-6 max-w-5xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+          {questions.map((q, i) => {
+            const parts = q.expression.split(/(\{ans\}|\{ans2\})/g);
+            return (
+              <div
+                key={i}
+                className="flex items-center gap-2 py-3 border-b border-amber-900/10"
+              >
+                {/* 题号 */}
+                <span className="text-slate-400 text-lg w-8 text-right flex-shrink-0 font-medium">
+                  {i + 1}.
+                </span>
 
-              {/* 表达式 */}
-              <span className="text-base md:text-lg flex-1 whitespace-nowrap">
-                {q.expression} =
-              </span>
-
-              {/* 括号包裹的输入框 */}
-              <span className="text-lg text-mc-dim">(</span>
-              <input
-                ref={(el) => { inputRefs.current[i] = el; }}
-                type="text"
-                inputMode="numeric"
-                value={userAnswers[i] || ""}
-                onChange={(e) => handleInput(i, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(e, i)}
-                disabled={isDisabled}
-                className="exam-input"
-                autoComplete="off"
-              />
-              <span className="text-lg text-mc-dim">)</span>
-            </div>
-          ))}
+                {/* 表达式和输入框 */}
+                <div className="flex-1 flex items-center flex-nowrap font-medium text-slate-800 text-xl md:text-2xl whitespace-nowrap overflow-x-auto no-scrollbar">
+                  {parts.map((part, pIdx) => {
+                    if (part === "{ans}") {
+                      const inputIndex = i * 2;
+                      return (
+                        <span key={pIdx} className="inline-flex items-center mx-1 flex-shrink-0">
+                          <span className="text-xl md:text-2xl text-slate-400 mr-1">(</span>
+                          <input
+                            ref={(el) => { inputRefs.current[inputIndex] = el; }}
+                            type="text"
+                            inputMode="numeric"
+                            value={userAnswers[i]?.ans1 || ""}
+                            onChange={(e) => handleInput(i, "ans1", e.target.value, inputIndex)}
+                            onKeyDown={(e) => handleKeyDown(e, inputIndex)}
+                            disabled={isDisabled}
+                            className="bg-transparent border-b-2 border-slate-300 text-center text-slate-900 outline-none w-12 md:w-16 text-xl md:text-2xl pb-1 focus:border-amber-500 focus:text-amber-600 font-sans transition-colors"
+                            autoComplete="off"
+                          />
+                          <span className="text-xl md:text-2xl text-slate-400 ml-1">)</span>
+                        </span>
+                      );
+                    }
+                    if (part === "{ans2}") {
+                      const inputIndex = i * 2 + 1;
+                      return (
+                        <span key={pIdx} className="inline-flex items-center mx-1 flex-shrink-0">
+                          <span className="text-xl md:text-2xl text-slate-400 mr-1">(</span>
+                          <input
+                            ref={(el) => { inputRefs.current[inputIndex] = el; }}
+                            type="text"
+                            inputMode="numeric"
+                            value={userAnswers[i]?.ans2 || ""}
+                            onChange={(e) => handleInput(i, "ans2", e.target.value, inputIndex)}
+                            onKeyDown={(e) => handleKeyDown(e, inputIndex)}
+                            disabled={isDisabled}
+                            className="bg-transparent border-b-2 border-slate-300 text-center text-slate-900 outline-none w-12 md:w-16 text-xl md:text-2xl pb-1 focus:border-amber-500 focus:text-amber-600 font-sans transition-colors"
+                            autoComplete="off"
+                          />
+                          <span className="text-xl md:text-2xl text-slate-400 ml-1">)</span>
+                        </span>
+                      );
+                    }
+                    return (
+                      <span key={pIdx} className="text-xl md:text-2xl whitespace-nowrap flex-shrink-0">
+                        {part}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

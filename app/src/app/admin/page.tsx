@@ -28,6 +28,10 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<number | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchStats = useCallback(async (pwd: string) => {
     setLoading(true);
@@ -61,6 +65,35 @@ export default function AdminPage() {
     }
     return () => document.body.classList.remove("blurred-bg");
   }, [fetchStats]);
+
+  async function confirmDelete() {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      const savedPwd = sessionStorage.getItem("adminPwd");
+      const res = await fetch(`/api/admin/users/${userToDelete}`, {
+        method: "DELETE",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${savedPwd}` 
+        },
+        body: JSON.stringify({ password: deletePassword })
+      });
+      if (res.ok) {
+        setUserToDelete(null);
+        setDeletePassword("");
+        fetchStats(savedPwd || "");
+      } else {
+        const data = await res.json();
+        setDeleteError(data.error || "删除失败");
+      }
+    } catch (e) {
+      setDeleteError("请求失败");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -158,6 +191,7 @@ export default function AdminPage() {
                   <th className="py-3 px-2">等级</th>
                   <th className="py-3 px-2">当前金币</th>
                   <th className="py-3 px-2">注册时间</th>
+                  <th className="py-3 px-2 text-right">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -170,11 +204,19 @@ export default function AdminPage() {
                     <td className="py-3 px-2 text-xs text-gray-400">
                       {new Date(char.createdAt).toLocaleString("zh-CN")}
                     </td>
+                    <td className="py-3 px-2 text-right">
+                      <button 
+                        onClick={() => setUserToDelete(char.id)}
+                        className="mc-btn mc-btn-danger text-xs px-2 py-1 font-mc"
+                      >
+                        删除
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {characters.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-mc-dim font-mc text-sm">
+                    <td colSpan={6} className="py-6 text-center text-mc-dim font-mc text-sm">
                       暂无用户
                     </td>
                   </tr>
@@ -184,6 +226,50 @@ export default function AdminPage() {
           </div>
         </section>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="mc-panel p-6 max-w-sm w-full relative">
+            <h2 className="text-mc-red text-xl font-mc mb-4 text-center">危险操作</h2>
+            <p className="text-mc-dim text-sm font-mc mb-6 text-center">
+              确定要删除该用户吗？此操作不可逆！
+            </p>
+            <div className="mb-4">
+              <label className="text-sm text-mc-dim font-mc mb-2 block">请输入管理员密码确认</label>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="mc-input w-full"
+                autoFocus
+                placeholder="Admin Password"
+              />
+              {deleteError && <p className="text-mc-red text-xs font-mc mt-1">{deleteError}</p>}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setUserToDelete(null);
+                  setDeletePassword("");
+                  setDeleteError("");
+                }}
+                className="mc-btn flex-1 font-mc text-sm"
+                disabled={isDeleting}
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting || !deletePassword}
+                className="mc-btn mc-btn-danger flex-1 font-mc text-sm"
+              >
+                {isDeleting ? "..." : "确认删除"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

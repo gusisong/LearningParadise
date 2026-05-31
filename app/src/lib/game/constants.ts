@@ -50,23 +50,21 @@ export type SkinType = (typeof SKINS)[number]["id"];
 
 // ─── 错题分类 ───
 export const QUESTION_TYPES = {
-  add_no_carry: "不进位加法",
-  add_carry: "进位加法",
-  sub_no_borrow: "不退位减法",
-  sub_borrow: "退位减法",
-  mul: "乘法",
-  div: "除法",
-  mixed_priority: "括号优先级",
-  mixed_complex: "复杂混合",
+  large_number_calc: "大数加减法",
+  continuous_calc: "连加连减",
+  mixed_no_bracket: "无括号混合运算",
+  equation_blank: "等式填空",
+  div_remainder_dividend: "带余除法求被除数",
+  div_remainder: "带余除法求商和余数",
 } as const;
 
 export type QuestionType = keyof typeof QUESTION_TYPES;
 
 // ─── 练习配置 ───
 export const PRACTICE_CONFIG = {
-  totalQuestions: 50,
+  totalQuestions: 40,
   defaultDurationSeconds: 180, // 3 分钟
   dailyLimit: 2,
   variantRatio: 0.2, // 20% 变形题
-  graduationThreshold: 5, // 连续答对 5 次毕业
+  graduationThreshold: 10, // 连续答对 10 次毕业
 };

@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="zh-CN" className={`${pixelFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <SoundProvider>
-          <div id="global-bg-blur" className="fixed inset-0 z-[-1] pointer-events-none backdrop-blur-sm backdrop-saturate-50 bg-black/40" />
+          <div id="global-bg-blur" className="fixed inset-0 z-[-1] pointer-events-none backdrop-blur-sm backdrop-saturate-100 bg-black/40" />
           {children}
         </SoundProvider>
       </body>
