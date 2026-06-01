@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { PRACTICE_CONFIG } from "@/lib/game/constants";
 
 interface Question {
   index: number;
@@ -16,7 +17,7 @@ interface AnswerPair {
   ans2: string;
 }
 
-const DURATION_SECONDS = 180; // 3 分钟
+const DURATION_SECONDS = PRACTICE_CONFIG.defaultDurationSeconds;
 
 export default function PracticePage() {
   const router = useRouter();
@@ -77,7 +78,6 @@ export default function PracticePage() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          handleSubmit();
           return 0;
         }
         return prev - 1;
@@ -87,8 +87,8 @@ export default function PracticePage() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
 
   // ─── 开始考试 ───
   async function startExam() {
@@ -162,6 +162,13 @@ export default function PracticePage() {
     }
   }, [phase, startTime, questions, userAnswers, characterId, router]);
 
+  // ─── 自动交卷 ───
+  useEffect(() => {
+    if (phase === "exam" && timeLeft === 0) {
+      handleSubmit();
+    }
+  }, [phase, timeLeft, handleSubmit]);
+
   // ─── 焦点流转 ───
   function handleKeyDown(e: React.KeyboardEvent, inputIndex: number) {
     if (e.key === "Enter" || e.key === "Tab") {
@@ -220,7 +227,7 @@ export default function PracticePage() {
           </h1>
 
           <div className="text-sm text-gray-300 mb-8 space-y-3 font-mc text-center bg-black/30 p-4 border border-[#1A1A1A] shadow-[inset_1px_1px_0_rgba(255,255,255,0.1)] w-full">
-            <p>📋 40 道题 <span className="text-slate-400 mx-2">|</span> ⏱ 3 分钟</p>
+            <p>📋 {PRACTICE_CONFIG.totalQuestions} 道题 <span className="text-slate-400 mx-2">|</span> ⏱ {PRACTICE_CONFIG.defaultDurationSeconds / 60} 分钟</p>
             <p className="text-mc-exp">📖 难度均衡，贴近日常练习</p>
           </div>
 

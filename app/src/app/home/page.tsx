@@ -76,7 +76,8 @@ export default function HomePage() {
   const router = useRouter();
   const [char, setChar] = useState<CharacterData | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [remaining, setRemaining] = useState(2);
+  const [remaining, setRemaining] = useState(4);
+  const [dailyLimit, setDailyLimit] = useState(4);
   const [loading, setLoading] = useState(true);
 
   // 装备切换弹窗状态
@@ -104,6 +105,7 @@ export default function HomePage() {
       
       setChar(charData);
       setRemaining(remData.remaining);
+      setDailyLimit(remData.dailyLimit);
       setInventory(invData);
     } catch {
       router.push("/");
@@ -166,7 +168,7 @@ export default function HomePage() {
           <span className="text-mc-gold" style={{ textShadow: "1px 1px 0 #000" }}>💰 {char.gold}</span>
           <span className="text-mc-red" title="今日剩余练习次数" style={{ textShadow: "1px 1px 0 #000" }}>
             {"🍗".repeat(remaining)}
-            {"  ".repeat(Math.max(0, 2 - remaining))}
+            {"  ".repeat(Math.max(0, dailyLimit - remaining))}
           </span>
         </div>
       </header>

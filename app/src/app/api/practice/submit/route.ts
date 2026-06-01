@@ -8,6 +8,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { calculateRewards } from "@/lib/game/rewards";
+import { PRACTICE_CONFIG } from "@/lib/game/constants";
 import { initializeDatabase } from "@/lib/db/seed";
 
 let dbInit = false;
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     )
     .get(characterId, today) as { c: number };
 
-  if (todayCount.c >= 2) {
+  if (todayCount.c >= PRACTICE_CONFIG.dailyLimit) {
     return NextResponse.json(
       { error: "今日练习次数已用完" },
       { status: 429 }

@@ -63,8 +63,8 @@ export type QuestionType = keyof typeof QUESTION_TYPES;
 // ─── 练习配置 ───
 export const PRACTICE_CONFIG = {
   totalQuestions: 40,
-  defaultDurationSeconds: 180, // 3 分钟
-  dailyLimit: 2,
+  defaultDurationSeconds: 240, // 4 分钟
+  dailyLimit: 4,
   variantRatio: 0.2, // 20% 变形题
   graduationThreshold: 10, // 连续答对 10 次毕业
 };
