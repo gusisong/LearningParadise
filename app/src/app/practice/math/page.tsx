@@ -17,22 +17,36 @@ interface AnswerPair {
   ans2: string;
 }
 
-const DURATION_SECONDS = PRACTICE_CONFIG.defaultDurationSeconds;
-
 export default function PracticePage() {
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [userAnswers, setUserAnswers] = useState<AnswerPair[]>([]);
   const [phase, setPhase] = useState<"setup" | "exam" | "submitting">("setup");
-  const [timeLeft, setTimeLeft] = useState(DURATION_SECONDS);
+  const [durationSeconds, setDurationSeconds] = useState(PRACTICE_CONFIG.defaultDurationSeconds);
+  const [timeLeft, setTimeLeft] = useState(PRACTICE_CONFIG.defaultDurationSeconds);
   const [startTime, setStartTime] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>(new Array(100).fill(null));
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const durationRef = useRef(PRACTICE_CONFIG.defaultDurationSeconds);
 
   const characterId =
     typeof window !== "undefined"
       ? localStorage.getItem("characterId")
       : null;
+
+  // ─── 获取管理员配置的练习时长（setup 界面显示用）───
+  useEffect(() => {
+    fetch("/api/practice/config")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.durationSeconds) {
+          setDurationSeconds(data.durationSeconds);
+          durationRef.current = data.durationSeconds;
+          setTimeLeft(data.durationSeconds);
+        }
+      })
+      .catch(() => {/* use default */});
+  }, []);
 
   // ─── 防刷新恢复 ───
   useEffect(() => {
@@ -43,13 +57,16 @@ export default function PracticePage() {
         const state = JSON.parse(saved);
         const now = Date.now();
         const elapsed = Math.floor((now - state.startTime) / 1000);
-        const remaining = DURATION_SECONDS - elapsed;
+        const savedDuration = state.durationSeconds || PRACTICE_CONFIG.defaultDurationSeconds;
+        const remaining = savedDuration - elapsed;
 
         if (remaining > 0 && state.questions?.length > 0) {
           setQuestions(state.questions);
           setUserAnswers(state.userAnswers || new Array(40).fill({ ans1: "", ans2: "" }));
           setTimeLeft(remaining);
           setStartTime(state.startTime);
+          setDurationSeconds(savedDuration);
+          durationRef.current = savedDuration;
           setPhase("exam");
           return;
         }
@@ -65,10 +82,10 @@ export default function PracticePage() {
     if (phase === "exam" && questions.length > 0) {
       localStorage.setItem(
         "practiceState",
-        JSON.stringify({ questions, userAnswers, startTime })
+        JSON.stringify({ questions, userAnswers, startTime, durationSeconds })
       );
     }
-  }, [userAnswers, phase, questions, startTime]);
+  }, [userAnswers, phase, questions, startTime, durationSeconds]);
 
   // ─── 倒计时 ───
   useEffect(() => {
@@ -103,10 +120,13 @@ export default function PracticePage() {
         body: JSON.stringify({ characterId: parseInt(characterId) }),
       });
       const data = await res.json();
+      const serverDuration = data.durationSeconds || PRACTICE_CONFIG.defaultDurationSeconds;
       setQuestions(data.questions);
       setUserAnswers(new Array(data.questions.length).fill({ ans1: "", ans2: "" }));
       setStartTime(Date.now());
-      setTimeLeft(DURATION_SECONDS);
+      setDurationSeconds(serverDuration);
+      durationRef.current = serverDuration;
+      setTimeLeft(serverDuration);
       setPhase("exam");
 
       // 聚焦第一个输入框
@@ -227,7 +247,7 @@ export default function PracticePage() {
           </h1>
 
           <div className="text-sm text-gray-300 mb-8 space-y-3 font-mc text-center bg-black/30 p-4 border border-[#1A1A1A] shadow-[inset_1px_1px_0_rgba(255,255,255,0.1)] w-full">
-            <p>📋 {PRACTICE_CONFIG.totalQuestions} 道题 <span className="text-slate-400 mx-2">|</span> ⏱ {PRACTICE_CONFIG.defaultDurationSeconds / 60} 分钟</p>
+            <p>📋 {PRACTICE_CONFIG.totalQuestions} 道题 <span className="text-slate-400 mx-2">|</span> ⏱ {durationSeconds >= 60 ? `${Math.floor(durationSeconds / 60)}分${durationSeconds % 60 > 0 ? `${durationSeconds % 60}秒` : "钟"}` : `${durationSeconds}秒`}</p>
             <p className="text-mc-exp">📖 难度均衡，贴近日常练习</p>
           </div>
 
@@ -251,9 +271,9 @@ export default function PracticePage() {
   const isDisabled = phase === "submitting";
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDFBF2] text-slate-800 font-sans">
+    <div className="min-h-screen flex flex-col bg-[#F5EDDA] text-slate-800 font-sans">
       {/* 置顶毛玻璃倒计时 */}
-      <div className="flex items-center justify-between px-6 py-4 sticky top-0 z-50 bg-[#FDFBF2]/90 backdrop-blur border-b border-amber-200/50 shadow-sm">
+      <div className="flex items-center justify-between px-6 py-4 sticky top-0 z-50 bg-[#F5EDDA]/90 backdrop-blur border-b border-amber-200/50 shadow-sm">
         <span className="text-sm font-bold text-slate-600">
           📝 口算练习
         </span>

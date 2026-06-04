@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { QUESTION_TYPES, type QuestionType } from "@/lib/game/constants";
 
 interface AdminStats {
   summary: {
@@ -33,6 +34,12 @@ export default function AdminPage() {
   const [deleteError, setDeleteError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // ─── 练习配置状态 ───
+  const [boostedTypes, setBoostedTypes] = useState<QuestionType[]>([]);
+  const [practiceDuration, setPracticeDuration] = useState(240);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaved, setConfigSaved] = useState<string | null>(null);
+
   const fetchStats = useCallback(async (pwd: string) => {
     setLoading(true);
     try {
@@ -56,15 +63,75 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchConfig = useCallback(async (pwd: string) => {
+    try {
+      const res = await fetch("/api/admin/config", {
+        headers: { Authorization: `Bearer ${pwd}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // 练习时长
+        if (data.practice_duration_seconds) {
+          setPracticeDuration(parseInt(data.practice_duration_seconds));
+        }
+        // 偏好题型
+        if (data.boosted_question_types) {
+          try {
+            const types = JSON.parse(data.boosted_question_types);
+            setBoostedTypes(types);
+          } catch { /* ignore */ }
+        }
+      }
+    } catch {
+      /* ignore config fetch failure */
+    }
+  }, []);
+
   useEffect(() => {
     document.body.classList.add("blurred-bg");
     const savedPwd = sessionStorage.getItem("adminPwd");
     if (savedPwd) {
       setPassword(savedPwd);
       fetchStats(savedPwd);
+      fetchConfig(savedPwd);
     }
     return () => document.body.classList.remove("blurred-bg");
-  }, [fetchStats]);
+  }, [fetchStats, fetchConfig]);
+
+  async function saveConfig(key: string, value: string) {
+    const pwd = sessionStorage.getItem("adminPwd");
+    if (!pwd) return;
+    setConfigLoading(true);
+    setConfigSaved(null);
+    try {
+      const res = await fetch("/api/admin/config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${pwd}`,
+        },
+        body: JSON.stringify({ key, value }),
+      });
+      if (res.ok) {
+        setConfigSaved(key);
+        setTimeout(() => setConfigSaved(null), 2000);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setConfigLoading(false);
+    }
+  }
+
+  function toggleBoostedType(type: QuestionType) {
+    setBoostedTypes(prev => {
+      if (prev.includes(type)) {
+        return prev.filter(t => t !== type);
+      } else {
+        return [...prev, type];
+      }
+    });
+  }
 
   async function confirmDelete() {
     if (!userToDelete) return;
@@ -98,6 +165,7 @@ export default function AdminPage() {
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     fetchStats(password);
+    fetchConfig(password);
   }
 
   function handleLogout() {
@@ -105,6 +173,15 @@ export default function AdminPage() {
     setIsAuthenticated(false);
     setStats(null);
     setPassword("");
+  }
+
+  // ─── 格式化时长显示 ───
+  function formatDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m > 0 && s > 0) return `${m}分${s}秒`;
+    if (m > 0) return `${m}分钟`;
+    return `${s}秒`;
   }
 
   // ─── 登录面板 ───
@@ -143,6 +220,8 @@ export default function AdminPage() {
 
   const { summary, characters } = stats;
 
+  const allTypes = Object.keys(QUESTION_TYPES) as QuestionType[];
+
   return (
     <div className="min-h-screen flex flex-col bg-black/40">
       <header className="mc-navbar">
@@ -175,6 +254,107 @@ export default function AdminPage() {
           <div className="mc-panel p-4 flex flex-col justify-center items-center">
             <span className="text-mc-dim text-xs font-mc mb-2">总练习时长 (秒)</span>
             <span className="text-mc-exp text-2xl font-mc">{summary.totalDurationSeconds}</span>
+          </div>
+        </section>
+
+        {/* ─── 练习配置区 ─── */}
+        <section className="mc-panel p-6">
+          <h2 className="text-mc-gold text-sm font-mc mb-6 border-b-2 border-panel-border pb-3">
+            ⚙️ 口算练习配置
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* 练习时长配置 */}
+            <div>
+              <h3 className="text-white text-xs font-mc mb-4 flex items-center gap-2">
+                <span>⏱</span> 练习时长
+              </h3>
+              <div className="bg-black/30 border border-[#1A1A1A] p-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.1)]">
+                <div className="flex items-center gap-4 mb-3">
+                  <button
+                    onClick={() => setPracticeDuration(prev => Math.max(30, prev - 30))}
+                    className="mc-btn text-lg px-4 py-2 font-mc"
+                    disabled={practiceDuration <= 30}
+                  >
+                    −
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="text-mc-gold text-3xl font-mc">{formatDuration(practiceDuration)}</span>
+                    <p className="text-mc-dim text-xs font-mc mt-1">{practiceDuration} 秒</p>
+                  </div>
+                  <button
+                    onClick={() => setPracticeDuration(prev => Math.min(600, prev + 30))}
+                    className="mc-btn text-lg px-4 py-2 font-mc"
+                    disabled={practiceDuration >= 600}
+                  >
+                    +
+                  </button>
+                </div>
+                {/* 快捷预设 */}
+                <div className="flex gap-2 flex-wrap mb-4">
+                  {[90, 120, 150, 180, 210, 240, 300].map(sec => (
+                    <button
+                      key={sec}
+                      onClick={() => setPracticeDuration(sec)}
+                      className={`text-xs px-3 py-1.5 font-mc border transition-colors ${
+                        practiceDuration === sec
+                          ? "bg-amber-700/50 border-amber-500 text-mc-gold"
+                          : "bg-black/20 border-gray-600 text-mc-dim hover:border-gray-400"
+                      }`}
+                    >
+                      {formatDuration(sec)}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => saveConfig("practice_duration_seconds", String(practiceDuration))}
+                  disabled={configLoading}
+                  className="mc-btn mc-btn-primary text-xs px-6 py-2 font-mc w-full"
+                >
+                  {configSaved === "practice_duration_seconds" ? "✅ 已保存" : configLoading ? "..." : "保存时长"}
+                </button>
+              </div>
+            </div>
+
+            {/* 题型偏好配置 */}
+            <div>
+              <h3 className="text-white text-xs font-mc mb-4 flex items-center gap-2">
+                <span>📋</span> 题型偏好（增加出题率）
+              </h3>
+              <div className="bg-black/30 border border-[#1A1A1A] p-4 shadow-[inset_1px_1px_0_rgba(255,255,255,0.1)]">
+                <p className="text-mc-dim text-xs font-mc mb-4">
+                  勾选的题型将增加约 30% 的出题比例
+                </p>
+                <div className="grid grid-cols-1 gap-2 mb-4">
+                  {allTypes.map(type => (
+                    <label
+                      key={type}
+                      className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer border transition-all ${
+                        boostedTypes.includes(type)
+                          ? "bg-emerald-900/30 border-emerald-500/50 text-mc-exp"
+                          : "bg-black/20 border-gray-700 text-mc-dim hover:border-gray-500"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={boostedTypes.includes(type)}
+                        onChange={() => toggleBoostedType(type)}
+                        className="w-4 h-4 accent-emerald-500"
+                      />
+                      <span className="text-xs font-mc">{QUESTION_TYPES[type]}</span>
+                      <span className="text-xs text-gray-500 ml-auto font-mono">{type}</span>
+                    </label>
+                  ))}
+                </div>
+                <button
+                  onClick={() => saveConfig("boosted_question_types", JSON.stringify(boostedTypes))}
+                  disabled={configLoading}
+                  className="mc-btn mc-btn-primary text-xs px-6 py-2 font-mc w-full"
+                >
+                  {configSaved === "boosted_question_types" ? "✅ 已保存" : configLoading ? "..." : "保存偏好"}
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 

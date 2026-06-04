@@ -191,10 +191,12 @@ export interface QuestionGeneratorOptions {
   weakTypes?: QuestionType[];
   /** 变形题数量 (默认 10) */
   variantCount?: number;
+  /** 管理员偏好加权的题型列表（增加出题率） */
+  boostedTypes?: QuestionType[];
 }
 
 export function generateQuestions(options: QuestionGeneratorOptions): GeneratedQuestion[] {
-  const { weakTypes = [], variantCount = 10 } = options;
+  const { weakTypes = [], variantCount = 10, boostedTypes = [] } = options;
   const questions: GeneratedQuestion[] = [];
 
   // 1. 先生成变形题（基于错题类型）
@@ -205,7 +207,17 @@ export function generateQuestions(options: QuestionGeneratorOptions): GeneratedQ
     questions.push(q);
   }
 
-  // 2. 剩余题目均匀分配各类型
+  // 2. 生成偏好加权题（管理员配置的题型增加出题率，占剩余的 ~30%）
+  if (boostedTypes.length > 0) {
+    const afterVariants = PRACTICE_CONFIG.totalQuestions - questions.length;
+    const boostedCount = Math.round(afterVariants * 0.3);
+    for (let i = 0; i < boostedCount; i++) {
+      const targetType = boostedTypes[i % boostedTypes.length];
+      questions.push(generateByType(targetType));
+    }
+  }
+
+  // 3. 剩余题目均匀分配各类型
   const remaining = PRACTICE_CONFIG.totalQuestions - questions.length;
 
   for (let i = 0; i < remaining; i++) {
@@ -213,7 +225,7 @@ export function generateQuestions(options: QuestionGeneratorOptions): GeneratedQ
     questions.push(gen());
   }
 
-  // 3. 随机打乱顺序
+  // 4. 随机打乱顺序
   for (let i = questions.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [questions[i], questions[j]] = [questions[j], questions[i]];

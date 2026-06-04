@@ -148,6 +148,7 @@ function seedConfig() {
         error_type_weight: 0.2,
       }),
     },
+    { key: "boosted_question_types", value: "[]" },
     {
       key: "reward_config",
       value: JSON.stringify({
